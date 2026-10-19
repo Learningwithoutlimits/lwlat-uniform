@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>LwLAT Netlify form definitions</title></head>
+<body>
+  <form name="low-stock-alert" method="POST" data-netlify="true" hidden>
+    <input type="hidden" name="form-name" value="low-stock-alert">
+    <input type="hidden" name="subject" value="LwLAT uniform stock alert">
+    <input type="hidden" name="alert">
+    <textarea name="items"></textarea>
+    <input type="hidden" name="action">
+  </form>
+  <form name="new-uniform-order" method="POST" data-netlify="true" hidden>
+    <input type="hidden" name="form-name" value="new-uniform-order">
+    <input type="hidden" name="subject" value="New LwLAT uniform order">
+    <input type="hidden" name="reference">
+    <input type="hidden" name="date">
+    <input type="hidden" name="staff_name">
+    <input type="email" name="staff_email">
+    <input type="hidden" name="school_or_team">
+    <input type="hidden" name="department_or_role">
+    <textarea name="items"></textarea>
+    <textarea name="notes"></textarea>
+  </form>
+</body>
+</html>
