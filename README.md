@@ -42,4 +42,4 @@ Orders and stock are stored in the site's Netlify Blobs store. The first visit c
 
 ## Existing password
 
-The current demonstration password is `LWLAT2026`. Set a different `ADMIN_PASSWORD` in Netlify before staff use the site.
+There is no default password. The **Stock admin** area stays locked until `ADMIN_PASSWORD` is set in Netlify.

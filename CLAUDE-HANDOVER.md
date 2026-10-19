@@ -52,13 +52,13 @@ No Resend API key or sender email variable is required.
 
 ## Environment variables
 
-Only this variable is required:
+Only this variable is required. There is no fallback, so the admin area stays locked until it is set:
 
 ```text
 ADMIN_PASSWORD=<private admin password>
 ```
 
-The previous demonstration password was `LWLAT2026`. Replace it before wider staff use. Never commit the live password.
+There is no built-in fallback password. If `ADMIN_PASSWORD` is not set, the admin area stays locked while the staff shop keeps working. Never commit the live password.
 
 ## Important files
 
@@ -79,7 +79,10 @@ The previous demonstration password was `LWLAT2026`. Replace it before wider sta
 - Keep the full Trust name visible.
 - Preserve the colourful LwLAT visual style.
 - Do not replace Open Sans with a fallback or external Google Fonts request.
-- Opening stock values are estimates and should be replaced with confirmed physical quantities before launch.
+- Opening stock comes from Polycopy delivery notes 499852 and 499853 (15 October 2026). Earlier estimates were removed. Products not on those notes start at zero.
+- Course clothing (Hair & Beauty tunics, Construction-branded Roma sweatshirts and Naples polos) is marked `adminOnly` in `lib/catalog.ts`. It is tracked in the admin area but hidden from staff and cannot be ordered through the shop.
+- Category colours carry meaning: Tops red, Shirts purple, Outerwear teal, Site team green, Catering yellow.
+- Sold-out items stay visible at the end of the range, greyed out.
 
 ## Known technical limitation
 
@@ -105,4 +108,4 @@ npm run build
 3. Test an order submission and verify stock decreases correctly.
 4. Test both Netlify form submissions in a deployed environment.
 5. Confirm staff pages contain no prices.
-6. Replace estimated opening stock only when confirmed figures are supplied.
+6. To load a new full stock count, edit the quantities in `lib/catalog.ts` and change `stockVersion`. On the next visit the stored stock and movement history are replaced. Orders are kept. For ordinary deliveries, use **Receive or adjust stock** in the admin area instead.
