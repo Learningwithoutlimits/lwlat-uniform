@@ -1,5 +1,5 @@
 import { getStore } from "@netlify/blobs";
-import { catalogue } from "../../../lib/catalog";
+import { catalogue, openingStockReference, stockVersion } from "../../../lib/catalog";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -43,6 +43,7 @@ type Movement = {
   created_at:string;
 };
 type State = {
+  stockVersion?:string;
   products:Array<Omit<(typeof catalogue)[number],"variants">>;
   variants:Variant[];
   orders:Order[];
@@ -51,8 +52,10 @@ type State = {
 
 const store = () => getStore({name:"lwlat-uniform-shop",consistency:"strong"});
 
-function initialState():State {
+function initialState(orders:Order[]=[]):State {
+  const created_at=new Date().toISOString();
   return {
+    stockVersion,
     products:catalogue.map(({variants,...product})=>product),
     variants:catalogue.flatMap(product=>product.variants.map(variant=>({
       ...variant,
@@ -60,8 +63,18 @@ function initialState():State {
       threshold:5,
       alerted:false
     }))),
-    orders:[],
-    movements:[]
+    orders,
+    movements:catalogue.flatMap(product=>product.variants.filter(variant=>variant.stock>0).map(variant=>({
+      id:crypto.randomUUID(),
+      sku:variant.sku,
+      product_name:product.name,
+      size:variant.size,
+      change:variant.stock,
+      resulting_stock:variant.stock,
+      reason:"Opening stock",
+      reference:openingStockReference,
+      created_at
+    })))
   };
 }
 
@@ -73,6 +86,11 @@ async function readState() {
     entry=await blobs.getWithMetadata("state",{type:"json",consistency:"strong"}) as {data:State;etag:string}|null;
   }
   if(!entry)throw new Error("Unable to initialise the stock database.");
+  if(entry.data.stockVersion!==stockVersion){
+    // A new opening stock count replaces the old figures. Orders are kept as a record.
+    await blobs.setJSON("state",initialState(entry.data.orders||[]),{onlyIfMatch:entry.etag});
+    return readState();
+  }
   return {blobs,state:entry.data,etag:entry.etag};
 }
 
@@ -158,7 +176,9 @@ export async function GET(request:Request) {
   try{
     const {state}=await readState();
     if(await isAdmin(request))return Response.json(state,{headers:{"cache-control":"no-store"}});
-    return Response.json({products:state.products.map(({price,embroidery,...product})=>product),variants:state.variants.map(({alerted,...variant})=>variant)},{headers:{"cache-control":"no-store"}});
+    const staffProducts=state.products.filter(product=>!product.adminOnly);
+    const staffIds=new Set(staffProducts.map(product=>product.id));
+    return Response.json({products:staffProducts.map(({price,embroidery,...product})=>product),variants:state.variants.filter(variant=>staffIds.has(variant.product_id)).map(({alerted,...variant})=>variant)},{headers:{"cache-control":"no-store"}});
   }catch(error){
     return Response.json({error:error instanceof Error?error.message:"Unable to load the shop."},{status:500});
   }
@@ -189,7 +209,7 @@ export async function POST(request:Request) {
           const quantity=Math.max(1,Math.min(10,Number(requested.quantity)||1));
           if(variant.stock<quantity)throw new Error(`There is not enough stock for ${requested.name}.`);
           const product=state.products.find(entry=>entry.id===variant.product_id);
-          if(!product)throw new Error("The selected product could not be found.");
+          if(!product||product.adminOnly)throw new Error("The selected product could not be found.");
           const previous=variant.stock;
           variant.stock-=quantity;
           total+=Number(product.price)*quantity;
