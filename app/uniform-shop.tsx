@@ -10,7 +10,7 @@ type Movement={id:string;sku:string;product_name:string;size:string;change:numbe
 const schools=["Trust Central Team","Babington Academy","Lancaster Academy","South Wigston High School","Heatherbrook Primary Academy","Woodstock Primary Academy"];
 
 const categories=["All","Tops","Shirts","Outerwear","Site team","Catering"];
-const categoryColour:Record<string,string>={Tops:"var(--red)",Shirts:"var(--purple)",Outerwear:"var(--teal)","Site team":"var(--green)",Catering:"var(--yellow)"};
+const categoryColour:Record<string,string>={Tops:"var(--red)",Shirts:"var(--purple)",Outerwear:"var(--teal)","Site team":"var(--dark-green)",Catering:"var(--orange)"};
 const steps=[
  ["Choose your clothing","Open an item and pick your size."],
  ["Check your basket","Change quantities or remove items."],
@@ -26,9 +26,13 @@ function Icon({name}:{name:"search"|"check"|"close"|"bag"}){
 export default function UniformShop(){
  const [products,setProducts]=useState<Product[]>([]),[orders,setOrders]=useState<Order[]>([]),[movements,setMovements]=useState<Movement[]>([]),[basket,setBasket]=useState<BasketItem[]>([]),[view,setView]=useState("shop"),[category,setCategory]=useState("All"),[search,setSearch]=useState(""),[loading,setLoading]=useState(true),[message,setMessage]=useState(""),[loadError,setLoadError]=useState("");
  const [selected,setSelected]=useState<Product|null>(null),[size,setSize]=useState(""),[adminToken,setAdminToken]=useState(""),[added,setAdded]=useState("");
- const lastFocus=useRef<HTMLElement|null>(null);
+ const lastFocus=useRef<HTMLElement|null>(null),searchRef=useRef<HTMLInputElement|null>(null);
  async function load(token=adminToken){setLoading(true);setLoadError("");try{const r=await fetch("/api/store",{headers:token?{authorization:`Bearer ${token}`}:{}});const d=await r.json();if(r.ok){const vars:Variant[]=d.variants;setProducts(d.products.map((p:any)=>({...p,variants:vars.filter(v=>v.product_id===p.id)})));setOrders(d.orders||[]);setMovements(d.movements||[])}else setLoadError(d.error||"The clothing range could not be loaded.")}catch{setLoadError("The clothing range could not be loaded. Check your connection and try again.")}setLoading(false)}
  useEffect(()=>{load()},[]);
+ useEffect(()=>{
+  const onKey=(e:KeyboardEvent)=>{const t=e.target as HTMLElement;if(e.key==="/"&&!["INPUT","TEXTAREA","SELECT"].includes(t.tagName)&&searchRef.current){e.preventDefault();searchRef.current.focus()}};
+  document.addEventListener("keydown",onKey);return()=>document.removeEventListener("keydown",onKey);
+ },[]);
  useEffect(()=>{if(!added)return;const timer=setTimeout(()=>setAdded(""),4500);return()=>clearTimeout(timer)},[added]);
  useEffect(()=>{
   if(!selected)return;
@@ -50,13 +54,20 @@ export default function UniformShop(){
   {message&&<div className="notice" role="status"><Icon name="check"/><div><strong>Order {message} has been sent.</strong><span>The central team will review it and tell you when your clothing is ready.</span></div><button onClick={()=>setMessage("")} aria-label="Dismiss message"><Icon name="close"/></button></div>}
   <main>
    <section className="hero">
-    <div className="hero-copy"><h1>Order your staff clothing</h1><p>Choose from the approved Trust range, pick your sizes and send your order. The Trust pays for it, so you will not be asked for any payment details.</p><div className="hero-actions"><a className="primary" href="#range">Browse the range</a><a className="text-link" href="#how">How ordering works</a></div></div>
-    <div className="hero-products" aria-hidden="true"><img src="/products/polo-hero.png" alt=""/><img src="/products/fleece-hero.png" alt=""/><img src="/products/jacket-hero.png" alt=""/></div>
-    <div className="brand-stripes" aria-hidden="true"><i/><i/><i/><i/><i/><i/></div>
+    <div className="hero-copy"><span className="eyebrow-pill"><i/>Staff uniform shop</span><h1>Order your staff clothing</h1><p>Choose from the approved Trust range, pick your sizes and send your order. The Trust pays for it, so you will not be asked for any payment details.</p><div className="hero-actions"><a className="primary" href="#range">Browse the range</a><a className="glass-button" href="#how">How ordering works</a></div></div>
+    <div className="hero-art" aria-hidden="true">
+     <div className="window hero-window">
+      <div className="window-bar"><span className="window-dots"><i/><i/><i/></span><span className="window-pill">Uniform shop</span></div>
+      <div className="hero-panel"><strong>Approved Trust clothing</strong><span>Supplied by Polycopy</span></div>
+      <div className="hero-products"><img src="/products/polo-hero.png" alt=""/><img src="/products/fleece-hero.png" alt=""/><img src="/products/jacket-hero.png" alt=""/></div>
+      <div className="window-strip"><span className="academy-dots"><i/><i/><i/><i/><i/></span><span>5 academies, 1 trust</span><Icon name="check"/></div>
+     </div>
+     <div className="float-badge"><span><Icon name="check"/></span>No payment needed</div>
+    </div>
    </section>
    <section className="steps" id="how" aria-labelledby="how-title"><h2 id="how-title" className="visually-hidden">How ordering works</h2><ol>{steps.map(([title,text],i)=><li key={title}><b>{i+1}</b><div><strong>{title}</strong><span>{text}</span></div></li>)}</ol></section>
    <section className="range" id="range" aria-labelledby="range-title">
-    <div className="range-head"><div><h2 id="range-title">Clothing range</h2><p className="result-count" aria-live="polite">{loading?"Loading items":`${filtered.length} ${filtered.length===1?"item":"items"}`}</p></div><label className="search"><Icon name="search"/><input type="search" aria-label="Search clothing" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search by name or code"/></label></div>
+    <div className="range-head"><div><h2 id="range-title">Clothing range</h2><p className="result-count" aria-live="polite">{loading?"Loading items":`${filtered.length} ${filtered.length===1?"item":"items"}`}</p></div><label className="search"><Icon name="search"/><input ref={searchRef} type="search" aria-label="Search clothing" aria-keyshortcuts="/" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search by name or code"/><kbd aria-hidden="true">/</kbd></label></div>
     <div className="filters" role="group" aria-label="Filter by category">{categories.map(c=><button key={c} aria-pressed={category===c} className={category===c?"active":""} onClick={()=>setCategory(c)}>{c!=="All"&&<i style={{background:categoryColour[c]}}/>}{c}</button>)}</div>
     {loadError?<div className="empty"><strong>The clothing range could not be loaded</strong><p>{loadError}</p><button className="primary" onClick={()=>load()}>Try again</button></div>
     :loading?<div className="product-grid" aria-hidden="true">{Array.from({length:8},(_,i)=><div className="product-card skeleton" key={i}><div className="product-image"/><div className="product-body"><span/><span/></div></div>)}</div>
@@ -64,11 +75,11 @@ export default function UniformShop(){
     :<div className="empty"><strong>No clothing matches {search?`"${search}"`:"this filter"}</strong><p>Try a different word, or show the whole range.</p><button className="primary" onClick={()=>{setSearch("");setCategory("All")}}>Show all clothing</button></div>}
    </section>
   </main>
-  <footer><div><strong>Learning without Limits Academy Trust</strong><span>Winning hearts and inspiring minds to learn without limits.</span></div><small>Clothing supplied by Polycopy. Orders are paid for by the Trust.</small></footer>
+  <footer><div><strong>Learning without Limits Academy Trust</strong><small>Clothing supplied by Polycopy. Orders are paid for by the Trust.</small></div><a href="https://www.lwlat.org.uk">lwlat.org.uk</a></footer>
   {added&&<div className="toast" role="status"><Icon name="check"/><span>Added {added}</span><button onClick={openCheckout}>View basket</button></div>}
-  {selected&&<div className="modal-backdrop" onMouseDown={closeItem}><section className="modal" role="dialog" aria-modal="true" aria-labelledby="item-title" onMouseDown={e=>e.stopPropagation()} style={{"--cat":categoryColour[selected.category]} as React.CSSProperties}>
+  {selected&&<div className="modal-backdrop" onMouseDown={closeItem}><section className="modal window" role="dialog" aria-modal="true" aria-labelledby="item-title" onMouseDown={e=>e.stopPropagation()} style={{"--cat":categoryColour[selected.category]} as React.CSSProperties}>
    <button className="modal-close" aria-label="Close item details" onClick={closeItem}><Icon name="close"/></button>
-   <div className="modal-image"><img src={selected.image} alt=""/></div>
+   <div className="modal-image"><span className="window-dots" aria-hidden="true"><i/><i/><i/></span><img src={selected.image} alt=""/></div>
    <div className="modal-body"><small><i/>{selected.category}, model {selected.model}</small><h2 id="item-title">{selected.name}</h2><p>{selected.note||"Approved Trust staff clothing, supplied by Polycopy."}</p>
     <fieldset className="sizes"><legend>Choose a size</legend><div>{selected.variants.map((v,i)=><button key={v.sku} autoFocus={i===0&&!!v.stock} aria-pressed={size===v.sku} disabled={!v.stock} className={size===v.sku?"active":""} onClick={()=>setSize(v.sku)}><span>{v.size}</span>{!v.stock?<small>Out of stock</small>:v.stock<=v.threshold?<small>Few left</small>:null}</button>)}</div></fieldset>
     {selected.variants.some(v=>v.stock>0)?<button className="primary full" disabled={!size} onClick={add}>{size?"Add to basket":"Choose a size to continue"}</button>:<p className="sold-out-note">This item is out of stock. The central team will add it back once a new delivery arrives.</p>}
@@ -82,8 +93,8 @@ function Checkout({basket,setBasket,back,done}:{basket:BasketItem[];setBasket:Re
  async function submit(e:any){e.preventDefault();setSending(true);setError("");const fd=new FormData(e.currentTarget);const customer=Object.fromEntries(fd.entries());try{const r=await fetch("/api/store",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({action:"order",customer,items:basket})});const d=await r.json();if(r.ok)done(d.id);else setError(d.error||"The order could not be sent. Please try again.")}catch{setError("The order could not be sent. Check your connection and try again.")}setSending(false)}
  function changeQuantity(sku:string,change:number){setBasket(items=>items.flatMap(item=>item.sku!==sku?[item]:item.quantity+change>0?[{...item,quantity:item.quantity+change}]:[]))}
  const count=basket.reduce((total,item)=>total+item.quantity,0);
- return <div className="checkout-page"><header className="site-header"><button className="brand" onClick={back}><strong>Learning without Limits Academy Trust</strong><span>Staff uniform shop</span></button></header><main className="checkout-wrap"><button className="back" onClick={back}>Back to the clothing range</button><div className="checkout-grid">
-  <section><h1>Your details</h1><p>We use these to send your order to the right school and to let you know when it is ready.</p>{error&&<div className="error" role="alert">{error}</div>}
+ return <div className="checkout-page"><header className="site-header"><button className="brand" onClick={back}><strong>Learning without Limits Academy Trust</strong><span>Staff uniform shop</span></button></header><main className="checkout-wrap"><button className="glass-button" onClick={back}>Back to the clothing range</button><div className="checkout-grid">
+  <section className="window"><h1>Your details</h1><p>We use these to send your order to the right school and to let you know when it is ready.</p>{error&&<div className="error" role="alert">{error}</div>}
    <form id="order-form" onSubmit={submit}>
     <label>Full name<input name="name" autoComplete="name" required/></label>
     <label>Work email<input name="email" type="email" autoComplete="email" required aria-describedby="email-help"/><small id="email-help">Use your school or Trust address.</small></label>
@@ -92,7 +103,7 @@ function Checkout({basket,setBasket,back,done}:{basket:BasketItem[];setBasket:Re
     <label className="wide"><span>Order notes <span className="optional">(optional)</span></span><textarea name="notes" rows={3} placeholder="Anything the central team should know"/></label>
    </form>
   </section>
-  <aside><div className="summary-heading"><h2>Your basket</h2><span>{count} {count===1?"item":"items"}</span></div>
+  <aside className="window"><div className="summary-heading"><h2>Your basket</h2><span>{count} {count===1?"item":"items"}</span></div>
    {basket.length?basket.map(i=><div className="summary-item" key={i.sku}><img src={i.image} alt=""/><span><strong>{i.name}</strong><small>Size {i.size}</small><button className="remove-item" onClick={()=>setBasket(items=>items.filter(item=>item.sku!==i.sku))}>Remove</button></span><div className="quantity" role="group" aria-label={`Quantity for ${i.name}`}><button onClick={()=>changeQuantity(i.sku,-1)} aria-label="Reduce quantity">−</button><b aria-live="polite">{i.quantity}</b><button onClick={()=>changeQuantity(i.sku,1)} aria-label="Increase quantity">+</button></div></div>)
    :<div className="empty small"><strong>Your basket is empty</strong><button className="text-link" onClick={back}>Go back and choose some clothing</button></div>}
    <p className="funded">The Trust pays for this order. You will not be asked for payment.</p><button form="order-form" className="primary full" disabled={sending||!basket.length}>{sending?"Sending your order…":"Send order"}</button></aside>
