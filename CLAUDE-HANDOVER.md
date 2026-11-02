@@ -10,7 +10,7 @@ This is an internal staff clothing ordering and stock-control website for Learni
 - Prepared for Netlify using `@netlify/plugin-nextjs`
 - Orders and inventory stored in Netlify Blobs
 - Administration area protected by the `ADMIN_PASSWORD` environment variable
-- Open Sans bundled locally through `@fontsource/open-sans`
+- Source Sans 3 bundled locally through `@fontsource/source-sans-3` (screen stand-in for the brand typeface The Sans)
 - Staff-facing prices hidden
 - Product prices retained for administration and purchasing purposes
 - Mobile-friendly catalogue, basket, checkout and administration views
@@ -18,9 +18,10 @@ This is an internal staff clothing ordering and stock-control website for Learni
 ## Brand and wording
 
 - Organisation name: **Learning without Limits Academy Trust**
-- Primary teal: `#009189`
-- Supporting colours: red `#CD163F`, purple `#6F2789`, yellow `#FDB913`, lime `#BFD22B`, dark green `#74A333`, grey `#636466`
-- Typeface: Open Sans throughout, including buttons, form controls and admin screens
+- Styled to match LwLAT Pulse Concept C (Jordan Weston, 2 Nov 2026): fixed teal backdrop with grid and ring arcs, white "window" cards, glass pills on teal
+- Colours from LwLAT Brand Guidelines v1.0: Mission teal `#098F88`, darkest teal `#00706A` (small text on white, primary buttons), teal `#009189`, Orange `#F5BA19`, light green `#ACCE33`, dark green `#73A434`, red `#CE153F`, purple `#6F2789`, grey `#636466`, near-black `#1F1F1F`, tints `#E6F4F3` and `#F2F7F7`, depth shade `#00524E`
+- The backdrop's brightest point is `#037973` (Mission teal toned towards darkest teal). Pure Mission teal gives white text only 3.97:1, below the 4.5:1 needed for body text
+- Typeface: Source Sans 3 throughout, including buttons, form controls and admin screens. Swap to The Sans if the Trust buys a web licence
 - Tone: clear, warm and practical
 - Staff do not pay when submitting an order
 
@@ -78,7 +79,7 @@ There is no built-in fallback password. If `ADMIN_PASSWORD` is not set, the admi
 - The hero garment artwork uses transparent PNGs to avoid visible image rectangles.
 - Keep the full Trust name visible.
 - Preserve the colourful LwLAT visual style.
-- Do not replace Open Sans with a fallback or external Google Fonts request.
+- Keep the typeface bundled locally. Do not load it from Google Fonts.
 - Opening stock comes from Polycopy delivery notes 499852 and 499853 (15 October 2026). Earlier estimates were removed. Products not on those notes start at zero.
 - Course clothing (Hair & Beauty tunics, Construction-branded Roma sweatshirts and Naples polos) is marked `adminOnly` in `lib/catalog.ts`. It is tracked in the admin area but hidden from staff and cannot be ordered through the shop.
 - Category colours carry meaning: Tops red, Shirts purple, Outerwear teal, Site team green, Catering yellow.
@@ -104,7 +105,7 @@ npm run build
 ## Suggested first checks for Claude
 
 1. Run the production build.
-2. Confirm Open Sans is applied to `html`, `body`, buttons, inputs, selects, textareas and admin controls.
+2. Confirm Source Sans 3 is applied to `html`, `body`, buttons, inputs, selects, textareas and admin controls.
 3. Test an order submission and verify stock decreases correctly.
 4. Test both Netlify form submissions in a deployed environment.
 5. Confirm staff pages contain no prices.
