@@ -34,7 +34,7 @@ Netlify records a `low-stock-alert` form submission when a product and size reac
 
 ## New-order alerts
 
-Every successful staff order also creates a `new-uniform-order` form submission. Its email notification includes the order reference, date, staff details, school or team, department, item names, sizes, product codes, quantities and notes.
+Every successful staff order also creates a `new-uniform-order` form submission. Its email notification includes the order reference, date, staff details, school or team, role, item names, sizes, product codes, quantities and notes.
 
 ## Data storage
 

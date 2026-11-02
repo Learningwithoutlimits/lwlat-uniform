@@ -30,7 +30,7 @@ This is an internal staff clothing ordering and stock-control website for Learni
 - Searchable Polycopy clothing catalogue
 - Size and quantity selection
 - Basket quantity controls and removal
-- Staff checkout with school or team and department details
+- Staff checkout with school or team and role details
 - Stock reduction when an order is submitted
 - Low-stock threshold of five pieces per product and size
 - Admin order-status management

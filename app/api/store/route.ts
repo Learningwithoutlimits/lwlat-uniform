@@ -24,7 +24,8 @@ type Order = {
   staff_name:string;
   email:string;
   school:string;
-  department:string;
+  role:string;
+  department?:string; // orders placed before the field became "Role"
   notes:string;
   status:string;
   total:number;
@@ -157,7 +158,7 @@ async function sendOrderAlert(order:Order,request:Request){
     staff_name:order.staff_name,
     staff_email:order.email,
     school_or_team:order.school,
-    department_or_role:order.department,
+    role:order.role,
     items:itemSummary,
     notes:order.notes||"No additional notes"
   });
@@ -220,7 +221,7 @@ export async function POST(request:Request) {
           }
           state.movements.unshift({id:crypto.randomUUID(),sku:variant.sku,product_name:product.name,size:variant.size,change:-quantity,resulting_stock:variant.stock,reason:"Staff order",reference:id,created_at:new Date().toISOString()});
         }
-        orderForAlert={id,staff_name:String(body.customer.name),email:String(body.customer.email),school:String(body.customer.school),department:String(body.customer.department||"Not provided"),notes:String(body.customer.notes||""),status:"Submitted",total,created_at:new Date().toISOString(),items};
+        orderForAlert={id,staff_name:String(body.customer.name),email:String(body.customer.email),school:String(body.customer.school),role:String(body.customer.role||"Not provided"),notes:String(body.customer.notes||""),status:"Submitted",total,created_at:new Date().toISOString(),items};
         state.orders.unshift(orderForAlert);
       });
       if(orderForAlert)await sendOrderAlert(orderForAlert,request).catch(()=>undefined);

@@ -5,7 +5,7 @@ type Variant={sku:string;product_id:string;size:string;stock:number;threshold:nu
 type Product={id:string;name:string;model:string;category:string;price:number;image:string;note?:string;adminOnly?:boolean;variants:Variant[]};
 type BasketItem={sku:string;productId:string;name:string;size:string;quantity:number;price:number;image:string};
 type OrderItem={sku:string;product_name:string;size:string;quantity:number;unit_price:number};
-type Order={id:string;staff_name:string;email:string;school:string;department:string;notes:string;status:string;total:number;created_at:string;items:OrderItem[]};
+type Order={id:string;staff_name:string;email:string;school:string;role?:string;department?:string;notes:string;status:string;total:number;created_at:string;items:OrderItem[]};
 type Movement={id:string;sku:string;product_name:string;size:string;change:number;resulting_stock:number;reason:string;reference:string;created_at:string};
 const schools=["Trust Central Team","Babington Academy","Lancaster Academy","South Wigston High School","Heatherbrook Primary Academy","Woodstock Primary Academy"];
 
@@ -14,7 +14,7 @@ const categoryColour:Record<string,string>={Tops:"var(--red)",Shirts:"var(--purp
 const steps=[
  ["Choose your clothing","Open an item and pick your size."],
  ["Check your basket","Change quantities or remove items."],
- ["Send your details","Your name, work email, school and department."],
+ ["Send your details","Your name, work email, school and role."],
  ["The Trust does the rest","The central team orders from Polycopy and tells you when your clothing is ready."]
 ];
 
@@ -99,7 +99,7 @@ function Checkout({basket,setBasket,back,done}:{basket:BasketItem[];setBasket:Re
     <label>Full name<input name="name" autoComplete="name" required/></label>
     <label>Work email<input name="email" type="email" autoComplete="email" required aria-describedby="email-help"/><small id="email-help">Use your school or Trust address.</small></label>
     <label>School or team<select name="school" required defaultValue=""><option value="" disabled>Choose your workplace</option>{schools.map(s=><option key={s}>{s}</option>)}</select></label>
-    <label>Department or role<input name="department" required/></label>
+    <label>Role<input name="role" autoComplete="organization-title" required/></label>
     <label className="wide"><span>Order notes <span className="optional">(optional)</span></span><textarea name="notes" rows={3} placeholder="Anything the central team should know"/></label>
    </form>
   </section>
@@ -136,8 +136,8 @@ function Admin({products,orders,movements,reload,close,token,setToken}:{products
   const link=document.createElement("a");link.href=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"}));link.download=filename;link.click();URL.revokeObjectURL(link.href);
  }
  function exportDetailed(){
-  const rows:unknown[][]=[["Order reference","Date","Staff member","Email","School","Department","Status","Product","SKU","Size","Quantity","Unit price"]];
-  orders.forEach(order=>order.items.forEach(item=>rows.push([order.id,new Date(order.created_at).toLocaleDateString("en-GB"),order.staff_name,order.email,order.school,order.department,order.status,item.product_name,item.sku,item.size,item.quantity,item.unit_price.toFixed(2)])));
+  const rows:unknown[][]=[["Order reference","Date","Staff member","Email","School","Role","Status","Product","SKU","Size","Quantity","Unit price"]];
+  orders.forEach(order=>order.items.forEach(item=>rows.push([order.id,new Date(order.created_at).toLocaleDateString("en-GB"),order.staff_name,order.email,order.school,order.role||order.department,order.status,item.product_name,item.sku,item.size,item.quantity,item.unit_price.toFixed(2)])));
   download("LwLAT-detailed-orders.csv",rows);
  }
  function exportPurchasing(){
@@ -159,7 +159,7 @@ function Admin({products,orders,movements,reload,close,token,setToken}:{products
    <div className="stat-grid"><article><span>Open orders</span><strong>{orders.filter(order=>order.status!=="Completed").length}</strong></article><article className="warn"><span>At five or fewer</span><strong>{low.length}</strong></article><article><span>Total units</span><strong>{variants.reduce((total,variant)=>total+variant.stock,0)}</strong></article><article><span>Stock movements</span><strong>{movements.length}</strong></article></div>
    <section className="admin-panel">
     <div className="panel-title admin-tools"><div><h2>Recent orders</h2><span>{orders.length} orders</span></div><div><button onClick={exportDetailed} disabled={!orders.length}>Export for Excel</button><button onClick={exportPurchasing} disabled={!orders.some(order=>["Approved","Purchase order raised"].includes(order.status))}>Polycopy purchase list</button></div></div>
-    <div className="table-wrap"><table><thead><tr><th>Reference</th><th>Staff member</th><th>School</th><th>Items</th><th>Status</th></tr></thead><tbody>{orders.length?orders.map(order=><tr key={order.id}><td><b>{order.id}</b><small>{new Date(order.created_at).toLocaleDateString("en-GB")}</small></td><td>{order.staff_name}<small>{order.email}</small></td><td>{order.school}<small>{order.department}</small></td><td>{order.items.reduce((total,item)=>total+item.quantity,0)}<small>{order.items.map(item=>`${item.product_name}, ${item.size} × ${item.quantity}`).join(" · ")}</small></td><td><select value={order.status} onChange={event=>update({action:"status",id:order.id,status:event.target.value})}><option>Submitted</option><option>Approved</option><option>Purchase order raised</option><option>Ordered</option><option>Ready</option><option>Completed</option></select></td></tr>):<tr><td colSpan={5}>No orders have been submitted yet.</td></tr>}</tbody></table></div>
+    <div className="table-wrap"><table><thead><tr><th>Reference</th><th>Staff member</th><th>School</th><th>Items</th><th>Status</th></tr></thead><tbody>{orders.length?orders.map(order=><tr key={order.id}><td><b>{order.id}</b><small>{new Date(order.created_at).toLocaleDateString("en-GB")}</small></td><td>{order.staff_name}<small>{order.email}</small></td><td>{order.school}<small>{order.role||order.department}</small></td><td>{order.items.reduce((total,item)=>total+item.quantity,0)}<small>{order.items.map(item=>`${item.product_name}, ${item.size} × ${item.quantity}`).join(" · ")}</small></td><td><select value={order.status} onChange={event=>update({action:"status",id:order.id,status:event.target.value})}><option>Submitted</option><option>Approved</option><option>Purchase order raised</option><option>Ordered</option><option>Ready</option><option>Completed</option></select></td></tr>):<tr><td colSpan={5}>No orders have been submitted yet.</td></tr>}</tbody></table></div>
    </section>
    <section className="admin-panel">
     <div className="panel-title delivery-head"><div><h2>Receive or adjust stock</h2><span>Low-stock warning level: 5 pieces</span></div><label>Reference<input value={reference} onChange={event=>setReference(event.target.value)} placeholder="PO or delivery note"/></label><label>Reason<select value={reason} onChange={event=>setReason(event.target.value)}><option>Stock delivery</option><option>Return</option><option>Damaged stock</option><option>Stock correction</option></select></label></div>
