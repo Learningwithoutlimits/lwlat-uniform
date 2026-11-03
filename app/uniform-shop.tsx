@@ -9,6 +9,8 @@ const money=(value:number)=>value.toLocaleString("en-GB",{style:"currency",curre
 const itemEach=(item:OrderItem)=>item.unit_price?item.unit_price+(item.embroidery||0):0;
 type Order={id:string;staff_name:string;email:string;school:string;role?:string;department?:string;notes:string;status:string;total:number;created_at:string;items:OrderItem[]};
 type Movement={id:string;sku:string;product_name:string;size:string;change:number;resulting_stock:number;reason:string;reference:string;created_at:string};
+type Confirmation={id:string;date:string;name:string;email:string;school:string;role:string;notes:string;items:BasketItem[]};
+const contactEmail="communications@lwlat.org.uk";
 const schools=["Trust Central Team","Babington Academy","Lancaster Academy","South Wigston High School","Heatherbrook Primary Academy","Woodstock Primary Academy"];
 
 const categories=["All","Tops","Shirts","Outerwear","Site team","Catering"];
@@ -26,8 +28,8 @@ function Icon({name}:{name:"search"|"check"|"close"|"bag"}){
 }
 
 export default function UniformShop(){
- const [products,setProducts]=useState<Product[]>([]),[orders,setOrders]=useState<Order[]>([]),[movements,setMovements]=useState<Movement[]>([]),[basket,setBasket]=useState<BasketItem[]>([]),[view,setView]=useState("shop"),[category,setCategory]=useState("All"),[search,setSearch]=useState(""),[loading,setLoading]=useState(true),[message,setMessage]=useState(""),[loadError,setLoadError]=useState("");
- const [selected,setSelected]=useState<Product|null>(null),[size,setSize]=useState(""),[adminToken,setAdminToken]=useState(""),[added,setAdded]=useState("");
+ const [products,setProducts]=useState<Product[]>([]),[orders,setOrders]=useState<Order[]>([]),[movements,setMovements]=useState<Movement[]>([]),[basket,setBasket]=useState<BasketItem[]>([]),[view,setView]=useState("shop"),[category,setCategory]=useState("All"),[search,setSearch]=useState(""),[loading,setLoading]=useState(true),[loadError,setLoadError]=useState("");
+ const [selected,setSelected]=useState<Product|null>(null),[size,setSize]=useState(""),[adminToken,setAdminToken]=useState(""),[added,setAdded]=useState(""),[confirmation,setConfirmation]=useState<Confirmation|null>(null);
  const lastFocus=useRef<HTMLElement|null>(null),searchRef=useRef<HTMLInputElement|null>(null);
  async function load(token=adminToken){setLoading(true);setLoadError("");try{const r=await fetch("/api/store",{headers:token?{authorization:`Bearer ${token}`}:{}});const d=await r.json();if(r.ok){const vars:Variant[]=d.variants;setProducts(d.products.map((p:any)=>({...p,variants:vars.filter(v=>v.product_id===p.id)})));setOrders(d.orders||[]);setMovements(d.movements||[])}else setLoadError(d.error||"The clothing range could not be loaded.")}catch{setLoadError("The clothing range could not be loaded. Check your connection and try again.")}setLoading(false)}
  useEffect(()=>{load()},[]);
@@ -50,10 +52,10 @@ export default function UniformShop(){
  function closeItem(){setSelected(null);setSize("");lastFocus.current?.focus()}
  function add(){if(!selected||!size)return;const v=selected.variants.find(v=>v.sku===size);if(!v)return;setBasket(old=>{const found=old.find(i=>i.sku===v.sku);return found?old.map(i=>i.sku===v.sku?{...i,quantity:Math.min(v.stock,i.quantity+1)}:i):[...old,{sku:v.sku,productId:selected.id,name:selected.name,size:v.size,quantity:1,price:selected.price,image:selected.image}]});setAdded(`${selected.name}, size ${v.size}`);closeItem()}
  if(view==="admin")return <Admin products={products} orders={orders} movements={movements} reload={load} close={()=>setView("shop")} token={adminToken} setToken={setAdminToken}/>;
- if(view==="checkout")return <Checkout basket={basket} setBasket={setBasket} back={()=>setView("shop")} done={(id)=>{setBasket([]);setMessage(id);setView("shop");window.scrollTo(0,0)}}/>;
+ if(view==="checkout")return <Checkout basket={basket} setBasket={setBasket} back={()=>setView("shop")} done={(order)=>{setConfirmation(order);setBasket([]);setView("confirmed");window.scrollTo(0,0)}}/>;
+ if(view==="confirmed"&&confirmation)return <Confirmed order={confirmation} back={()=>{setView("shop");window.scrollTo(0,0)}}/>;
  return <div className="site-shell">
   <header className="site-header"><button className="brand" onClick={()=>setView("shop")} aria-label="Learning without Limits Academy Trust uniform shop home"><strong>Learning without Limits Academy Trust</strong><span>Staff uniform shop</span></button><nav aria-label="Main navigation"><a href="#range">Clothing</a><a href="#how">How it works</a><button onClick={()=>setView("admin")}>Stock admin</button></nav><button className="basket" disabled={!basket.length} onClick={openCheckout} aria-label={`Basket, ${basketCount} ${basketCount===1?"item":"items"}`}><Icon name="bag"/>Basket <b key={basketCount} className={basketCount?"bump":""}>{basketCount}</b></button></header>
-  {message&&<div className="notice" role="status"><Icon name="check"/><div><strong>Order {message} has been sent.</strong><span>The central team will review it and tell you when your clothing is ready.</span></div><button onClick={()=>setMessage("")} aria-label="Dismiss message"><Icon name="close"/></button></div>}
   <main>
    <section className="hero">
     <div className="hero-copy"><span className="eyebrow-pill"><i/>Staff uniform shop</span><h1>Order your staff clothing</h1><p>Choose from the approved Trust range, pick your sizes and send your order. The Trust pays for it, so you will not be asked for any payment details.</p><div className="hero-actions"><a className="primary" href="#range">Browse the range</a><a className="glass-button" href="#how">How ordering works</a></div></div>
@@ -90,9 +92,9 @@ export default function UniformShop(){
  </div>
 }
 
-function Checkout({basket,setBasket,back,done}:{basket:BasketItem[];setBasket:React.Dispatch<React.SetStateAction<BasketItem[]>>;back:()=>void;done:(id:string)=>void}) {
+function Checkout({basket,setBasket,back,done}:{basket:BasketItem[];setBasket:React.Dispatch<React.SetStateAction<BasketItem[]>>;back:()=>void;done:(order:Confirmation)=>void}) {
  const [sending,setSending]=useState(false),[error,setError]=useState("");
- async function submit(e:any){e.preventDefault();setSending(true);setError("");const fd=new FormData(e.currentTarget);const customer=Object.fromEntries(fd.entries());try{const r=await fetch("/api/store",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({action:"order",customer,items:basket})});const d=await r.json();if(r.ok)done(d.id);else setError(d.error||"The order could not be sent. Please try again.")}catch{setError("The order could not be sent. Check your connection and try again.")}setSending(false)}
+ async function submit(e:any){e.preventDefault();setSending(true);setError("");const fd=new FormData(e.currentTarget);const customer=Object.fromEntries(fd.entries());try{const r=await fetch("/api/store",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({action:"order",customer,items:basket})});const d=await r.json();if(r.ok)done({id:d.id,date:new Date().toLocaleString("en-GB",{dateStyle:"long",timeStyle:"short"}),name:String(customer.name),email:String(customer.email),school:String(customer.school),role:String(customer.role),notes:String(customer.notes||""),items:basket});else setError(d.error||"The order could not be sent. Please try again.")}catch{setError("The order could not be sent. Check your connection and try again.")}setSending(false)}
  function changeQuantity(sku:string,change:number){setBasket(items=>items.flatMap(item=>item.sku!==sku?[item]:item.quantity+change>0?[{...item,quantity:item.quantity+change}]:[]))}
  const count=basket.reduce((total,item)=>total+item.quantity,0);
  return <div className="checkout-page"><header className="site-header"><button className="brand" onClick={back}><strong>Learning without Limits Academy Trust</strong><span>Staff uniform shop</span></button></header><main className="checkout-wrap"><button className="glass-button" onClick={back}>Back to the clothing range</button><div className="checkout-grid">
@@ -110,6 +112,26 @@ function Checkout({basket,setBasket,back,done}:{basket:BasketItem[];setBasket:Re
    :<div className="empty small"><strong>Your basket is empty</strong><button className="text-link" onClick={back}>Go back and choose some clothing</button></div>}
    <p className="funded">The Trust pays for this order. You will not be asked for payment.</p><button form="order-form" className="primary full" disabled={sending||!basket.length}>{sending?"Sending your order…":"Send order"}</button></aside>
  </div></main></div>
+}
+
+function Confirmed({order,back}:{order:Confirmation;back:()=>void}){
+ const count=order.items.reduce((total,item)=>total+item.quantity,0);
+ const itemLines=order.items.map(item=>`${item.name}, size ${item.size}, quantity ${item.quantity}`).join("\n");
+ const subject=`Uniform order ${order.id}: correction needed`;
+ const body=`Hello,\n\nI need to correct my uniform order.\n\nOrder reference: ${order.id}\nPlaced: ${order.date}\nName: ${order.name}\nSchool or team: ${order.school}\n\nWhat I ordered:\n${itemLines}\n\nWhat needs to change:\n\n\nThank you`;
+ const mailto=`mailto:${contactEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+ return <div className="checkout-page confirmed-page"><header className="site-header"><button className="brand" onClick={back}><strong>Learning without Limits Academy Trust</strong><span>Staff uniform shop</span></button></header><main className="checkout-wrap">
+  <section className="window confirmation" aria-labelledby="confirmed-title">
+   <div className="confirmation-head"><span className="confirmation-tick" aria-hidden="true"><Icon name="check"/></span><div><h1 id="confirmed-title" tabIndex={-1} ref={el=>el?.focus()}>Your order has been sent</h1><p>Thank you, {order.name.split(" ")[0]}. The central team will review your order and let you know when your clothing is ready.</p></div></div>
+   <dl className="confirmation-meta"><div><dt>Order reference</dt><dd>{order.id}</dd></div><div><dt>Placed</dt><dd>{order.date}</dd></div><div><dt>School or team</dt><dd>{order.school}</dd></div><div><dt>Role</dt><dd>{order.role}</dd></div></dl>
+   <h2>Items ordered <span>{count} {count===1?"item":"items"}</span></h2>
+   <ul className="confirmation-items">{order.items.map(item=><li key={item.sku}><img src={item.image} alt=""/><span><strong>{item.name}</strong><small>Size {item.size}</small></span><b>× {item.quantity}</b></li>)}</ul>
+   {order.notes&&<p className="confirmation-notes"><strong>Your notes:</strong> {order.notes}</p>}
+   <p className="funded">The Trust pays for this order. You do not need to do anything else.</p>
+   <div className="mistake"><div><strong>Made a mistake?</strong><span>Contact {contactEmail} with your order reference and what needs changing.<span className="screen-only"> The button opens an email with your order details already filled in.</span></span></div><a className="primary" href={mailto}>Email about my order</a></div>
+   <div className="confirmation-actions"><button className="text-link" onClick={()=>window.print()}>Print or save a copy</button><button className="primary" onClick={back}>Back to the clothing range</button></div>
+  </section>
+ </main></div>
 }
 
 function Admin({products,orders,movements,reload,close,token,setToken}:{products:Product[];orders:Order[];movements:Movement[];reload:(token?:string)=>void;close:()=>void;token:string;setToken:(value:string)=>void}){
