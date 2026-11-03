@@ -18,6 +18,7 @@ type OrderItem = {
   size:string;
   quantity:number;
   unit_price:number;
+  embroidery?:number;
 };
 type Order = {
   id:string;
@@ -148,8 +149,15 @@ async function sendLowStockAlert(items:Array<{name:string;size:string;stock:numb
   });
   if(!response.ok)throw new Error("Netlify did not accept the low-stock notification.");
 }
+const money=(value:number)=>value.toLocaleString("en-GB",{style:"currency",currency:"GBP"});
+function lineCost(item:OrderItem){
+  const each=item.unit_price+(item.embroidery||0);
+  const breakdown=item.embroidery?`${money(item.unit_price)} + ${money(item.embroidery)} embroidery = ${money(each)} each`:`${money(each)} each`;
+  return item.unit_price?`${breakdown} | Line total ${money(each*item.quantity)}`:"Price not set";
+}
 async function sendOrderAlert(order:Order,request:Request){
-  const itemSummary=order.items.map(item=>`${item.product_name} | Size ${item.size} | ${item.sku} | Quantity ${item.quantity}`).join("\n");
+  const itemSummary=order.items.map(item=>`${item.product_name} | Size ${item.size} | ${item.sku} | Quantity ${item.quantity} | ${lineCost(item)}`).join("\n");
+  const unpriced=order.items.filter(item=>!item.unit_price).length;
   const form=new URLSearchParams({
     "form-name":"new-uniform-order",
     subject:`New LwLAT uniform order: ${order.id}`,
@@ -160,6 +168,7 @@ async function sendOrderAlert(order:Order,request:Request){
     school_or_team:order.school,
     role:order.role,
     items:itemSummary,
+    total_cost:money(order.total)+(unpriced?` (excludes ${unpriced} item${unpriced===1?"":"s"} with no price set)`:""),
     notes:order.notes||"No additional notes"
   });
   const response=await fetch(new URL("/__forms.html",request.url),{
@@ -201,8 +210,9 @@ export async function POST(request:Request) {
       const id=`LWL-${Date.now().toString(36).toUpperCase()}`;
       const newlyLow:Array<{name:string;size:string;stock:number;sku:string}>=[];
       let orderForAlert:Order|undefined;
-      let total=0;
       await mutate(state=>{
+        // Reset on every attempt, since mutate re-runs this after a clash with another save.
+        let total=0;newlyLow.length=0;
         const items:OrderItem[]=[];
         for(const requested of body.items){
           const variant=state.variants.find(entry=>entry.sku===String(requested.sku));
@@ -213,8 +223,9 @@ export async function POST(request:Request) {
           if(!product||product.adminOnly)throw new Error("The selected product could not be found.");
           const previous=variant.stock;
           variant.stock-=quantity;
-          total+=Number(product.price)*quantity;
-          items.push({sku:variant.sku,product_name:product.name,size:variant.size,quantity,unit_price:Number(product.price)});
+          const embroidery=Number(product.embroidery||0);
+          if(Number(product.price))total+=(Number(product.price)+embroidery)*quantity;
+          items.push({sku:variant.sku,product_name:product.name,size:variant.size,quantity,unit_price:Number(product.price),embroidery});
           if(variant.stock<=5&&!variant.alerted){
             variant.alerted=true;
             newlyLow.push({name:product.name,size:variant.size,stock:variant.stock,sku:variant.sku});
